@@ -1,0 +1,66 @@
+schema: '2.0'
+stages:
+  data_visualization:
+    cmd: python src/data_visualization.py
+    deps:
+    - path: data/raw/datos_creditos.csv
+      hash: md5
+      md5: 3b26edd22e8827f890d7cd32efe475b7
+      size: 663047
+    - path: data/raw/datos_tarjetas.csv
+      hash: md5
+      md5: 9e197c893925601cd447c81256e8cf07
+      size: 845190
+    - path: src/data_visualization.py
+      hash: md5
+      md5: 5677f9c8111504b4f40cb87eab34d4c7
+      size: 4891
+    outs:
+    - path: reports/figures/correlaciones_creditos.png
+      hash: md5
+      md5: 995715e367a93110e3ac387e0906da51
+      size: 90441
+    - path: reports/figures/correlaciones_tarjetas.png
+      hash: md5
+      md5: 14953465cf5655b55617cc50a200837a
+      size: 61632
+    - path: reports/figures/creditos_objetivo_credito.png
+      hash: md5
+      md5: d4f0733271d4d75b7c203f475ef36b4a
+      size: 24048
+    - path: reports/figures/creditos_situacion_vivienda.png
+      hash: md5
+      md5: 31809922a9637aedcfa61b8fce4d264c
+      size: 19958
+    - path: reports/figures/relacion_variables_economicas_mora.png
+      hash: md5
+      md5: 5208a75fc974d9d33e63af5ad0d5e6a1
+      size: 51646
+    - path: reports/figures/target_distribution_falta_pago.png
+      hash: md5
+      md5: cc37f6696d1f34ae2cd48719d6837983
+      size: 21317
+    - path: reports/figures/tarjetas_estado_civil.png
+      hash: md5
+      md5: dc36af310e300b30d4ba99d199d3f6ad
+      size: 19745
+    - path: reports/figures/tarjetas_estado_cliente.png
+      hash: md5
+      md5: f9e6227a18aa82aa81db18fb05c7aab6
+      size: 17133
+    - path: reports/figures/tarjetas_genero.png
+      hash: md5
+      md5: 84f939fea7029ecc13186771bff16768
+      size: 12291
+    - path: reports/figures/tarjetas_nivel_educativo.png
+      hash: md5
+      md5: a50039d092c1ff3d1c3966b5938e9a30
+      size: 30622
+    - path: reports/figures/tarjetas_nivel_tarjeta.png
+      hash: md5
+      md5: 1acff37b1e1f0516ff6ddf21bcc61c19
+      size: 16539
+    - path: reports/figures/variable_economica_vs_mora.png
+      hash: md5
+      md5: 154c6867d508107db9f9d813ee4726c1
+      size: 15480

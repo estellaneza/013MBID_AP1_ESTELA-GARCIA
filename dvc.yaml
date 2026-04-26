@@ -1,0 +1,24 @@
+stages:
+  data_visualization:
+    cmd: python src/data_visualization.py
+    deps:
+      - src/data_visualization.py
+      - data/raw/datos_creditos.csv
+      - data/raw/datos_tarjetas.csv
+    outs:
+      - reports/figures/target_distribution_falta_pago.png
+      - reports/figures/creditos_objetivo_credito.png
+      - reports/figures/creditos_situacion_vivienda.png
+      - reports/figures/tarjetas_estado_civil.png
+      - reports/figures/tarjetas_estado_cliente.png
+      - reports/figures/tarjetas_genero.png
+      - reports/figures/tarjetas_nivel_educativo.png
+      - reports/figures/tarjetas_nivel_tarjeta.png
+      - reports/figures/correlaciones_creditos.png
+      - reports/figures/correlaciones_tarjetas.png
+      # ---- Gráficos adicionales (exploración avanzada) ----
+      - reports/figures/variable_economica_vs_mora.png
+      - reports/figures/relacion_variables_economicas_mora.png
+
+      
+

@@ -52,7 +52,7 @@ categorical_cols_creditos = (
     df_creditos
     .select_dtypes(include=["object"])
     .columns
-    .drop("falta_pago")
+    .drop("falta_pago", errors="ignore")
 )
 
 for col in categorical_cols_creditos:
@@ -90,26 +90,65 @@ for col in categorical_cols_tarjetas:
 # CORRELACIONES - CRÉDITOS
 # =========================
 num_creditos = df_creditos.select_dtypes(include=["int64", "float64"])
-corr_creditos = num_creditos.corr()
-
-plt.figure(figsize=(10, 8))
-sns.heatmap(corr_creditos, annot=True, cmap="coolwarm", fmt=".2f")
-plt.title("Matriz de correlaciones - Créditos")
-plt.tight_layout()
-plt.savefig(OUTPUT_PATH / "correlaciones_creditos.png")
-plt.close()
+if not num_creditos.empty:
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(num_creditos.corr(), annot=True, cmap="coolwarm", fmt=".2f")
+    plt.title("Matriz de correlaciones - Créditos")
+    plt.tight_layout()
+    plt.savefig(OUTPUT_PATH / "correlaciones_creditos.png")
+    plt.close()
 
 # =========================
 # CORRELACIONES - TARJETAS
 # =========================
 num_tarjetas = df_tarjetas.select_dtypes(include=["int64", "float64"])
-corr_tarjetas = num_tarjetas.corr()
+if not num_tarjetas.empty:
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(num_tarjetas.corr(), annot=True, cmap="coolwarm", fmt=".2f")
+    plt.title("Matriz de correlaciones - Tarjetas")
+    plt.tight_layout()
+    plt.savefig(OUTPUT_PATH / "correlaciones_tarjetas.png")
+    plt.close()
 
-plt.figure(figsize=(10, 8))
-sns.heatmap(corr_tarjetas, annot=True, cmap="coolwarm", fmt=".2f")
-plt.title("Matriz de correlaciones - Tarjetas")
-plt.tight_layout()
-plt.savefig(OUTPUT_PATH / "correlaciones_tarjetas.png")
-plt.close()
+# =====================================================
+# 7. DISTRIBUCIÓN DE VARIABLE ECONÓMICA SEGÚN MORA
+# =====================================================
+# Análisis de una variable numérica frente a la variable objetivo
+if not num_creditos.empty and "falta_pago" in df_creditos.columns:
+    col_economica = num_creditos.columns[0]
+
+    plt.figure()
+    sns.boxplot(
+        x="falta_pago",
+        y=col_economica,
+        data=df_creditos
+    )
+    plt.title(f"Distribución de {col_economica} según mora")
+    plt.xlabel("Presenta mora")
+    plt.ylabel(col_economica)
+    plt.tight_layout()
+    plt.savefig(OUTPUT_PATH / "variable_economica_vs_mora.png")
+    plt.close()
+
+# =====================================================
+# 8. RELACIÓN ENTRE DOS VARIABLES ECONÓMICAS Y MORA
+# =====================================================
+if num_creditos.shape[1] >= 2 and "falta_pago" in df_creditos.columns:
+    x_col = num_creditos.columns[0]
+    y_col = num_creditos.columns[1]
+
+    plt.figure()
+    sns.scatterplot(
+        x=x_col,
+        y=y_col,
+        hue="falta_pago",
+        data=df_creditos
+    )
+    plt.title(f"Relación entre {x_col} y {y_col} diferenciando por mora")
+    plt.xlabel(x_col)
+    plt.ylabel(y_col)
+    plt.tight_layout()
+    plt.savefig(OUTPUT_PATH / "relacion_variables_economicas_mora.png")
+    plt.close()
 
 print("\n✅ Visualización de datos finalizada correctamente.")

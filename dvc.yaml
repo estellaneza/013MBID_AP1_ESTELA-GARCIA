@@ -16,9 +16,23 @@ stages:
       - reports/figures/tarjetas_nivel_tarjeta.png
       - reports/figures/correlaciones_creditos.png
       - reports/figures/correlaciones_tarjetas.png
-      # ---- Gráficos adicionales (exploración avanzada) ----
       - reports/figures/variable_economica_vs_mora.png
       - reports/figures/relacion_variables_economicas_mora.png
 
-      
+  test_pandera:
+    cmd: pytest --html=test/report_pandera.html --self-contained-html tests/test_data_quality.py -v || exit 0
+    deps:
+      - data/raw/datos_creditos.csv
+      - data/raw/datos_tarjetas.csv
+      - tests/test_data_quality.py
+    outs:
+      - test/report_pandera.html
 
+  test_ge:
+    cmd: pytest --html=test/report_ge.html --self-contained-html tests/test_data_quality_ge.py -v || exit 0
+    deps:
+      - data/raw/datos_creditos.csv
+      - data/raw/datos_tarjetas.csv
+      - tests/test_data_quality_ge.py
+    outs:
+      - test/report_ge.html

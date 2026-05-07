@@ -1,7 +1,0 @@
-{
-  "test_accuracy": 0.8558736426456071,
-  "test_precision_macro": 0.7610775703444366,
-  "test_recall_macro": 0.8547833373881546,
-  "test_f1_macro": 0.7907924814412457,
-  "test_roc_auc": 0.9213635012029302
-}

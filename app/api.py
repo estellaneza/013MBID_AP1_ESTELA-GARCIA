@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Dict
 import pandas as pd
 import joblib
+import os
 
 # ============================
 # Inicialización FastAPI
@@ -19,8 +20,6 @@ app = FastAPI(
 
 # ============================
 # Esquema de entrada
-# (COINCIDE 100% con datos_integrados.csv
-#  + valores por defecto reales)
 # ============================
 class PredictionRequest(BaseModel):
     edad: int = 21
@@ -54,51 +53,52 @@ class PredictionResponse(BaseModel):
     model_info: Dict[str, str]
 
 # ============================
-# Carga del modelo
+# Carga del modelo (robusta para Render)
 # ============================
-MODEL_PATH = "models/prod_model.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "prod_model.pkl")
 
 try:
     model = joblib.load(MODEL_PATH)
-    print("Modelo cargado correctamente.")
+    print(f"✅ Modelo cargado correctamente desde {MODEL_PATH}")
 except Exception as e:
-    print(f"Error al cargar el modelo: {e}")
+    print(f"❌ Error al cargar el modelo: {e}")
     model = None
 
 # ============================
-# Endpoints
+# Endpoints (IGUAL QUE EL PROFE)
 # ============================
 
-# Entrar a / abre Swagger directamente
-@app.get("/", include_in_schema=False)
-def root():
-    return RedirectResponse(url="/docs")
+# 👉 READ ROOT (aparece como GET / en Swagger)
+@app.get("/", tags=["default"])
+def read_root():
+    return {
+        "message": "API de Predicción de Mora en Créditos",
+        "endpoints": ["/health", "/predict", "/docs"]
+    }
 
-@app.get("/health")
+# 👉 HEALTH CHECK
+@app.get("/health", tags=["default"])
 def health():
-    return {"status": "ok"} if model else {"status": "error"}
+    return {"status": "ok"} if model is not None else {"status": "error"}
 
-@app.post("/predict", response_model=PredictionResponse)
+# 👉 PREDICCIÓN
+@app.post("/predict", tags=["default"], response_model=PredictionResponse)
 def predict(req: PredictionRequest):
     if model is None:
         raise HTTPException(status_code=500, detail="Modelo no disponible")
 
     try:
-        # DataFrame con TODAS las columnas esperadas por el modelo
-        df = pd.DataFrame([req.dict()])
-
-        prediction = model.predict(df)[0]
-        probabilities = model.predict_proba(df)[0]
+        df = pd.DataFrame([req.model_dump()])
+        pred = model.predict(df)[0]
+        prob = model.predict_proba(df)[0]
         classes = model.named_steps["model"].classes_
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Error en la inferencia: {e}")
+        raise HTTPException(status_code=503, detail=f"Error en inferencia: {e}")
 
     return PredictionResponse(
-        prediction=str(prediction),
-        probability={
-            str(classes[i]): float(probabilities[i])
-            for i in range(len(classes))
-        },
+        prediction=str(pred),
+        probability={str(classes[i]): float(prob[i]) for i in range(len(classes))},
         class_labels={
             "N": "No entra en mora",
             "Y": "Entra en mora"

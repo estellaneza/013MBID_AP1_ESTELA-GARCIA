@@ -11,10 +11,7 @@ import os
 # ============================
 app = FastAPI(
     title="Modelo de Predicción de Mora en Créditos",
-    description=(
-        "Una API para predecir la probabilidad de mora en créditos "
-        "utilizando un modelo de machine learning entrenado con datos históricos."
-    ),
+    description="API para predecir la probabilidad de mora en créditos",
     version="1.0.0",
 )
 
@@ -22,26 +19,26 @@ app = FastAPI(
 # Esquema de entrada
 # ============================
 class PredictionRequest(BaseModel):
-    edad: int = 21
-    situacion_vivienda: str = "PROPIA"
-    ingresos: int = 9600
-    objetivo_credito: str = "EDUCACIÓN"
-    pct_ingreso: float = 0.10
-    tasa_interes: float = 11.14
-    estado_credito: int = 0
-    antiguedad_cliente: float = 39.0
-    estado_civil: str = "CASADO"
-    estado_cliente: str = "ACTIVO"
-    genero: str = "M"
-    limite_credito_tc: float = 12691.0
-    nivel_educativo: str = "SECUNDARIO_COMPLETO"
-    nivel_tarjeta: str = "Blue"
-    personas_a_cargo: float = 3.0
-    capacidad_pago: float = 0.104167
-    estabilidad_laboral: float = 0.238095
-    operaciones_mensuales: float = 3.5
-    gasto_medio_mensual: float = 95.333333
-    gasto_promedio_operacion: float = 27.238095
+    edad: int
+    situacion_vivienda: str
+    ingresos: int
+    objetivo_credito: str
+    pct_ingreso: float
+    tasa_interes: float
+    estado_credito: int
+    antiguedad_cliente: float
+    estado_civil: str
+    estado_cliente: str
+    genero: str
+    limite_credito_tc: float
+    nivel_educativo: str
+    nivel_tarjeta: str
+    personas_a_cargo: float
+    capacidad_pago: float
+    estabilidad_laboral: float
+    operaciones_mensuales: float
+    gasto_medio_mensual: float
+    gasto_promedio_operacion: float
 
 # ============================
 # Esquema de salida
@@ -49,59 +46,60 @@ class PredictionRequest(BaseModel):
 class PredictionResponse(BaseModel):
     prediction: str
     probability: Dict[str, float]
-    class_labels: Dict[str, str]
-    model_info: Dict[str, str]
 
 # ============================
-# Carga del modelo
+# Carga del modelo y preprocesador (CLAVE)
 # ============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "prod_model.pkl")
+MODELS_DIR = os.path.join(BASE_DIR, "..", "models")
+
+MODEL_PATH = os.path.join(MODELS_DIR, "prod_model.pkl")
+PREPROCESSOR_PATH = os.path.join(MODELS_DIR, "prod_preprocessor.pkl")
+
+model = None
+preprocessor = None
 
 try:
+    preprocessor = joblib.load(PREPROCESSOR_PATH)
     model = joblib.load(MODEL_PATH)
-    print("✅ Modelo cargado correctamente")
+    print("✅ Modelo y preprocesador cargados correctamente")
 except Exception as e:
-    print(f"❌ Error al cargar el modelo: {e}")
+    print(f"❌ Error cargando modelo o preprocesador: {e}")
     model = None
+    preprocessor = None
 
 # ============================
 # Endpoints
 # ============================
 
-# 👉 ROOT: REDIRIGE DIRECTO A SWAGGER (COMO EL PROFE)
-@app.get("/", tags=["default"], include_in_schema=True)
+@app.get("/", tags=["default"])
 def root():
     return RedirectResponse(url="/docs")
 
-# 👉 HEALTH
 @app.get("/health", tags=["default"])
 def health():
-    return {"status": "ok"} if model is not None else {"status": "error"}
+    if model is not None and preprocessor is not None:
+        return {"status": "ok"}
+    return {"status": "error"}
 
-# 👉 PREDICT
 @app.post("/predict", tags=["default"], response_model=PredictionResponse)
 def predict(req: PredictionRequest):
-    if model is None:
+    if model is None or preprocessor is None:
         raise HTTPException(status_code=500, detail="Modelo no disponible")
 
     try:
-        df = pd.DataFrame([req.model_dump()])
-        pred = model.predict(df)[0]
-        proba = model.predict_proba(df)[0]
-        classes = model.named_steps["model"].classes_
+        df = pd.DataFrame([req.dict()])
+        X = preprocessor.transform(df)
+        prediction = model.predict(X)[0]
+        proba = model.predict_proba(X)[0]
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Error en inferencia: {e}")
+        raise HTTPException(status_code=500, detail=f"Error en inferencia: {e}")
 
     return PredictionResponse(
-        prediction=str(pred),
-        probability={str(classes[i]): float(proba[i]) for i in range(len(classes))},
-        class_labels={
-            "N": "No entra en mora",
-            "Y": "Entra en mora"
-        },
-        model_info={
-            "model_type": type(model.named_steps["model"]).__name__,
-            "version": "1.0.0"
+        prediction=str(prediction),
+        probability={
+            "0": float(proba[0]),
+            "1": float(proba[1])
         }
     )
+

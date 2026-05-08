@@ -53,36 +53,33 @@ class PredictionResponse(BaseModel):
     model_info: Dict[str, str]
 
 # ============================
-# Carga del modelo (robusta para Render)
+# Carga del modelo
 # ============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "prod_model.pkl")
 
 try:
     model = joblib.load(MODEL_PATH)
-    print(f"✅ Modelo cargado correctamente desde {MODEL_PATH}")
+    print("✅ Modelo cargado correctamente")
 except Exception as e:
     print(f"❌ Error al cargar el modelo: {e}")
     model = None
 
 # ============================
-# Endpoints (IGUAL QUE EL PROFE)
+# Endpoints
 # ============================
 
-# 👉 READ ROOT (aparece como GET / en Swagger)
-@app.get("/", tags=["default"])
-def read_root():
-    return {
-        "message": "API de Predicción de Mora en Créditos",
-        "endpoints": ["/health", "/predict", "/docs"]
-    }
+# 👉 ROOT: REDIRIGE DIRECTO A SWAGGER (COMO EL PROFE)
+@app.get("/", tags=["default"], include_in_schema=True)
+def root():
+    return RedirectResponse(url="/docs")
 
-# 👉 HEALTH CHECK
+# 👉 HEALTH
 @app.get("/health", tags=["default"])
 def health():
     return {"status": "ok"} if model is not None else {"status": "error"}
 
-# 👉 PREDICCIÓN
+# 👉 PREDICT
 @app.post("/predict", tags=["default"], response_model=PredictionResponse)
 def predict(req: PredictionRequest):
     if model is None:
@@ -91,14 +88,14 @@ def predict(req: PredictionRequest):
     try:
         df = pd.DataFrame([req.model_dump()])
         pred = model.predict(df)[0]
-        prob = model.predict_proba(df)[0]
+        proba = model.predict_proba(df)[0]
         classes = model.named_steps["model"].classes_
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Error en inferencia: {e}")
 
     return PredictionResponse(
         prediction=str(pred),
-        probability={str(classes[i]): float(prob[i]) for i in range(len(classes))},
+        probability={str(classes[i]): float(proba[i]) for i in range(len(classes))},
         class_labels={
             "N": "No entra en mora",
             "Y": "Entra en mora"

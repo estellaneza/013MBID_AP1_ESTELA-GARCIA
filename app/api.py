@@ -1,76 +1,65 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict
 import pandas as pd
 import joblib
-import os
 
-# ============================
+# =============================================================================
 # Inicialización FastAPI
-# ============================
+# =============================================================================
+
 app = FastAPI(
     title="Modelo de Predicción de Mora en Créditos",
-    description="API para predecir la probabilidad de mora en créditos",
+    description=(
+        "API para predecir la probabilidad de mora en créditos "
+        "utilizando un modelo de machine learning entrenado"
+    ),
     version="1.0.0",
 )
 
-# ============================
-# Esquema de entrada
-# ============================
+# =============================================================================
+# INPUT
+# =============================================================================
+
 class PredictionRequest(BaseModel):
-    edad: int
+    edad: int = Field(..., ge=18)
     situacion_vivienda: str
-    ingresos: int
+    ingresos: float = Field(..., ge=0)
     objetivo_credito: str
-    pct_ingreso: float
-    tasa_interes: float
-    estado_credito: int
-    antiguedad_cliente: float
+    pct_ingreso: float = Field(..., ge=0, le=1)
+    tasa_interes: float = Field(..., ge=0)
+    estado_credito: int = Field(..., ge=0, le=1)
+    antiguedad_cliente: float = Field(..., ge=0)
     estado_civil: str
     estado_cliente: str
     genero: str
-    limite_credito_tc: float
+    limite_credito_tc: float = Field(..., ge=0)
     nivel_educativo: str
     nivel_tarjeta: str
-    personas_a_cargo: float
-    capacidad_pago: float
-    estabilidad_laboral: float
-    operaciones_mensuales: float
-    gasto_medio_mensual: float
-    gasto_promedio_operacion: float
+    personas_a_cargo: int = Field(..., ge=0)
+    capacidad_pago: float = Field(..., ge=0, le=1)
+    estabilidad_laboral: float = Field(..., ge=0, le=1)
+    operaciones_mensuales: float = Field(..., ge=0)
+    gasto_medio_mensual: float = Field(..., ge=0)
+    gasto_promedio_operacion: float = Field(..., ge=0)
 
-# ============================
-# Esquema de salida
-# ============================
-class PredictionResponse(BaseModel):
-    prediction: str
-    probability: Dict[str, float]
+# =============================================================================
+# Carga del modelo
+# =============================================================================
 
-# ============================
-# Carga del modelo y preprocesador (CLAVE)
-# ============================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODELS_DIR = os.path.join(BASE_DIR, "..", "models")
-
-MODEL_PATH = os.path.join(MODELS_DIR, "prod_model.pkl")
-PREPROCESSOR_PATH = os.path.join(MODELS_DIR, "prod_preprocessor.pkl")
-
-model = None
-preprocessor = None
+MODEL_PATH = "models/prod_model.pkl"
 
 try:
-    preprocessor = joblib.load(PREPROCESSOR_PATH)
     model = joblib.load(MODEL_PATH)
-    print("✅ Modelo y preprocesador cargados correctamente")
+    print("Modelo cargado correctamente")
 except Exception as e:
-    print(f"❌ Error cargando modelo o preprocesador: {e}")
+    print(f"Error cargando el modelo: {e}")
     model = None
-    preprocessor = None
 
-# ============================
+# =============================================================================
 # Endpoints
-# ============================
+# =============================================================================
 
 @app.get("/", tags=["default"])
 def root():
@@ -78,28 +67,48 @@ def root():
 
 @app.get("/health", tags=["default"])
 def health():
-    if model is not None and preprocessor is not None:
-        return {"status": "ok"}
-    return {"status": "error"}
+    return {"status": "ok"} if model else {"status": "error"}
 
-@app.post("/predict", tags=["default"], response_model=PredictionResponse)
-def predict(req: PredictionRequest):
-    if model is None or preprocessor is None:
+@app.post("/predict", tags=["default"])
+def predict(request: PredictionRequest):
+    """
+    Devuelve:
+    - Predicción final (N / Y)
+    - Probabilidad de cada clase
+    """
+
+    if model is None:
         raise HTTPException(status_code=500, detail="Modelo no disponible")
 
     try:
-        df = pd.DataFrame([req.dict()])
-        X = preprocessor.transform(df)
-        prediction = model.predict(X)[0]
-        proba = model.predict_proba(X)[0]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en inferencia: {e}")
+        df = pd.DataFrame([request.dict()])
 
-    return PredictionResponse(
-        prediction=str(prediction),
-        probability={
-            "0": float(proba[0]),
-            "1": float(proba[1])
+        # Predicción
+        prediction = model.predict(df)[0]
+
+        # Probabilidades
+        proba = model.predict_proba(df)[0]
+        classes = model.classes_
+
+        probability_dict: Dict[str, float] = {
+            str(classes[i]): float(proba[i])
+            for i in range(len(classes))
         }
-    )
 
+        return {
+            "prediction": prediction,
+            "probability": probability_dict,
+            "class_labels": {
+                "N": "No entra en mora",
+                "Y": "Entra en mora"
+            },
+            "model_info": {
+                "model_type": type(model.named_steps["model"]).__name__
+                if hasattr(model, "named_steps")
+                else type(model).__name__,
+                "version": "1.0.0"
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
